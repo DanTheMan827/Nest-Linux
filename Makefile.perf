@@ -1,0 +1,63 @@
+#
+#    Copyright (c) 2017 Nest Labs, Inc.
+#    All rights reserved.
+#
+#    This document is the property of Nest. It is considered
+#    confidential and proprietary information.
+#
+#    This document may not be reproduced or transmitted in any form,
+#    in whole or in part, without the express written permission of
+#    Nest.
+#
+#    Description:
+#    This file is the make file for the Linux 'perf' tool.
+#
+
+include pre.mak
+
+PackageSourceDir	:= $(LinuxSourcesPath)/tools/perf
+PackageBuildMakefile	:= Makefile.perf
+
+all: $(PackageDefaultGoal)
+
+CommonMakeArgs := \
+	-C $(PackageSourceDir) \
+	-f $(PackageBuildMakefile) \
+	CC="$(CC) $(CPPOPTFLAGS)" \
+	INSTALL="$(INSTALL) $(INSTALLFLAGS)" \
+	EXTRA_CFLAGS=" \
+		$(addprefix -isystem ,$(LinuxIncludePath)) \
+		$(call ToolAssertLanguageFlag,data-sections) \
+		$(call ToolAssertLanguageFlag,function-sections) \
+	" \
+	LDFLAGS="-Wl,--gc-sections" \
+	ARCH=$(LinuxProductArch) \
+	O=$(CURDIR)/$(BuildDirectory) \
+	DESTDIR=$(ResultDirectory) \
+	ONLY_PERF_RECORD=1 \
+	NO_LIBELF=1 \
+	$(if $(BuildVerbose),V=$(BuildVerbose)) \
+	$(NULL)
+
+# The Linux kernel build has no way of explicitly setting CC, LD,
+# OBJCOPY, et al and instead relies on the value of
+# CROSS_COMPILE. Consequently, we have to ensure that 'ToolBinDir' is
+# in 'PATH' so that the kernel build infrastructure can find
+# $(CROSS_COMPILE)gcc, $(CROSS_COMPILE)ld, et al.
+
+PATH := $(PATH):$(ToolBinDir)
+CROSS_COMPILE := $(CCACHE) $(CROSS_COMPILE)
+
+.PHONY: build
+build: | $(BuildDirectory)
+	$(Verbose)$(MAKE) $(CommonMakeArgs)
+
+.PHONY: stage
+stage: | $(BuildDirectory) $(ResultDirectory)
+	$(Verbose)$(MAKE) $(CommonMakeArgs) install
+
+.PHONY: clean
+clean:
+	$(Verbose)$(MAKE) $(CommonMakeArgs) clean
+
+include post.mak
