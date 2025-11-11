@@ -58,7 +58,7 @@ fi
 # Create the logo file
 (
   echo "Converting \"$(basename "$LOGO_PATH")\" to \"logo_diamond_clut224.ppm\"..."
-	pngtopam -mix "$LOGO_PATH" | \
+	pngtopnm -mix "$LOGO_PATH" | \
 		  ppmquant -fs 223 | \
 		  pnmtoplainpnm > "$SCRIPT_DIR/linux/drivers/video/logo/logo_diamond_clut224.ppm"
 )
