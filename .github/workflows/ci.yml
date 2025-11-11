@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    strategy:
+      matrix:
+        include:
+          - config: ./configs/gtvhacker/defconfig
+            rootfs: ./rootfs/gtvhacker
+            logo: ./logo/gtvhacker.png
+          
+          - config: ./configs/j49/release_defconfig
+          - config: ./configs/diamond/release_defconfig
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Install dependencies
+        run: |
+          echo "set man-db/auto-update false" | sudo debconf-communicate
+          sudo dpkg-reconfigure man-db
+          
+          sudo apt update
+          sudo apt install -y \
+            cpio \
+            u-boot-tools \
+            netpbm
+        
+      - name: Get toolchain file name
+        id: toolchain
+        run: |
+          TOOLCHAIN_URL="$(cat toolchain.txt)"
+          FILE_NAME="$(basename "$TOOLCHAIN_URL")"
+          echo "url=$TOOLCHAIN_URL" >> $GITHUB_OUTPUT
+          echo "name=$FILE_NAME" >> $GITHUB_OUTPUT
+          
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          key: ${{ steps.toolchain.outputs.name }}
+          path: ./toolchain
+
+      - name: Run build script
+        run: ./build.sh "${{ matrix.config }}" "${{ matrix.rootfs || './rootfs/gtvhacker' }}" "${{ matrix.logo || './logo/nest-logo-320x320.png' }}"
+        
+      - name: Get artifact name
+        id: artifact_name
+        run: |
+          NAME="$(echo -n "${{ matrix.config }}" | sed 's/^.\/configs\///' | sed -e 's/\//_/g' | sed -e 's/_defconfig$//')"
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.name || steps.artifact_name.outputs.name }}
+          path: |
+            ./linux/arch/arm/boot/uImage
+            ./initramfs_data.cpio

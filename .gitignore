@@ -1,1 +1,3 @@
+toolchain/
+initramfs_data.cpio
 Makefile.NN
